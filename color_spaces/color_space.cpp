@@ -1,4 +1,14 @@
 /*
+ * Diarmid Flatley
+ * MAT 201B
+ * 2018/01/29
+ *
+ * This was working, but now crashes with a segmentation fault. I dont know what's wrong.
+ *
+ * Pressing Keys 1,2,3 or 4 should change the vertex mapping
+ */
+
+/*:
   This example shows how to use Image, Array and Texture to read a .jpg file,
 display it as an OpenGL texture and print the pixel values on the command line.
 Notice that while the intput image has only 4 pixels, the rendered texture is
@@ -16,16 +26,14 @@ using namespace std;
 class MyApp : public App {
 public:
 
-  // Image and Texture handle reading and displaying image files.
-  //
   Image image;
-  Texture texture;
+  Mesh mesh;
+  int input;
 
   MyApp() {
 
     // Load a .jpg file
-    //
-    const char *filename = "Fotos/MO_05alpha.png";
+    const char *filename = "mat201b/color_spaces/double-rainbow.jpg";
 
     if (image.load(filename)) {
       printf("Read image from %s\n", filename);
@@ -33,88 +41,80 @@ public:
       printf("Failed to read image from %s!  Quitting.\n", filename);
       exit(-1);
     }
+  };
 
-    // Here we copy the pixels from the image to the texture
-    texture.allocate(image.array());
+  void onKeyDown(const Keyboard &k) {
+           input = k.key();
+          cout << input  << endl;
+  };
 
-    // Don't bother trying to print the image or the image's array directly
-    // using C++ syntax.  This won't work:
-    //
-    //cout << "Image " << image << endl;
-    //cout << "   Array: " << image.array() << endl;
-
-    // Make a reference to our image's array so we can just say "array" instead
-    // of "image.array()":
-    //
+  void onAnimate(double dt) {
+        
     Array& array(image.array());
-
-    // The "components" of the array are like "planes" in Jitter: the number of
-    // data elements in each cell.  In our case three components would
-    // represent R, G, B.
-    //
-    cout << "array has " << (int) array.components() << " components" << endl;
-
-    // Each of these data elements is represented by the same numeric type:
-    //
-    cout << "Array's type (as enum) is " << array.type() << endl;
-
-    // But that type is represented as an enum (see al_Array.h), so if you want
-    // to read it use this function:
-    //
-    printf("Array's type (human readable) is %s\n", allo_type_name(array.type()));
-
-    // The array itself also has a print method:
-    //
-    cout << "Array.print: "  << endl << "   ";
-    array.print();    
-
-
-    // Code below assumes this type is 8-bit unsigned integer, so this line
-    // guarantees that's the case, or else crashes the program if not:
-    //
+   
     assert(array.type() == AlloUInt8Ty);
 
-    // AlloCore's image class provides a type for an RGBA pixel, which is of
-    // course templated on the numeric type used to represent each value in the
-    // pixel.  Since templating happens at compile time we can't just ask the
-    // array at runtime what type to put in here (hence the "assert" above):
-    //
     Image::RGBAPix<uint8_t> pixel;
-
-    // Loop through all the pixels.  Note that the columns go from left to
-    // right and the rows go from bottom to top.  (So the "row" and "column"
-    // are like X and Y coordinates on the Cartesian plane, with the entire
-    // image living in the quadrant with positive X and positive Y --- in other
-    // words the origin is in the lower left of the image.)
-    //
-    cout << "Display ALL the pixels !!! " << endl;
-
-    for (size_t row = 0; row < array.height(); ++row) {
-      for (size_t col = 0; col < array.width(); ++col) {
-
-        // read the pixel at (row, col) and print
-        //
-        //array.read(&pixel, row, col);
-        array.read(&pixel, col, row);
-        cout << "image[" << row << "," << col << "]=" <<
-        (int)pixel.r << "," << (int)pixel.g << "," << (int)pixel.b << endl;
+   
+    mesh.primitive(Graphics::POINTS);
+    mesh.stroke(1);
+  
+    mesh.reset();
+   
+    if (input == 49) {
+        for (size_t row = 0; row < array.height(); ++row) {
+          for (size_t col = 0; col < array.width(); ++col) {
+            mesh.vertex(col,row,0);
+           // array.read(&pixel, col, row);
+            mesh.color(float((int)pixel.r/255.0f), float((int)pixel.g/255.0f), float((int)pixel.b/255.0f));
+          }
+        }
+      input = -1;  
       }
-    }
-  }
+
+    else if (input == 50) {  
+        for (size_t row = 0; row < array.height(); ++row) {
+          for (size_t col = 0; col < array.width(); ++col) { 
+            // RGB Cube
+            array.read(&pixel, col, row);
+            mesh.vertex((int)pixel.r, (int)pixel.g, (int)pixel.b);
+            mesh.color(float((int)pixel.r/255.0f), float((int)pixel.g/255.0f), float((int)pixel.b/255.0f));   
+          }
+        }
+        input = -1;
+      }
+    else if (input == 51) {
+         for (size_t row = 0; row < array.height(); ++row) {
+           for (size_t col = 0; col < array.width(); ++col) {        
+             Color original;
+             HSV convert; 
+             array.read(&pixel,col, row);
+             original = RGB(float((int)pixel.r/255.0f), float((int)pixel.g/255.0f), float((int)pixel.b/255.0f));
+             convert = HSV(original);
+             mesh.vertex(convert.h*255,convert.s*255,convert.v*255);
+             mesh.color(float((int)pixel.r/255.0f), float((int)pixel.g/255.0f), float((int)pixel.b/255.0f));
+           }   
+         }
+         input = -1;
+       }
+    else if (input == 52) {
+         for (size_t row = 0; row < array.height(); ++row) {
+           for (size_t col = 0; col < array.width(); ++col) {
+             array.read(&pixel,col,row);
+             mesh.vertex(rand() % 255, rand() % 255, rand() % 255); 
+             mesh.color(float((int)pixel.r/255.0f), float((int)pixel.g/255.0f), float((int)pixel.b/255.0f));  
+           }
+         }
+         input = -1;
+       }            
+  };
 
   void onDraw(Graphics& g) {
-
-    g.pushMatrix();
-
-      // Push the texture/quad back 5 units (away from the camera)
-      //
-      g.translate(0, 0, -5);
-
-      // See void Texture::quad(...) in the Doxygen
-      //
-      texture.quad(g);
-
-    g.popMatrix();
+     g.pushMatrix();
+     g.translate(-0.15,-0.15,-0.5);
+     g.scale(0.001);
+      g.draw(mesh);
+     g.popMatrix();
   }
 };
 
