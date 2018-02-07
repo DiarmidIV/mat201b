@@ -1,3 +1,8 @@
+// Diarmid Flatley
+// MAT 201B
+// 2018 02 07
+// diarmid@umail.ucsb.edu
+
 #include "allocore/io/al_App.hpp"
 using namespace al;
 using namespace std;
