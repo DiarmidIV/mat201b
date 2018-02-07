@@ -49,7 +49,9 @@ struct MyApp : App {
           cube.vertex(pixel.r / 256.0f, pixel.g / 256.0f, pixel.b / 256.f);
           HSV convert;
           convert = HSV(color);
-          cylinder.vertex(convert.h,convert.s,convert.v);
+         // cylinder.vertex(convert.h,convert.s,convert.v);
+          cylinder.vertex(convert.s * sin(2 * M_PI * convert.h), convert.v,
+              convert.s * cos(2 * M_PI * convert.h));
           last.vertex(col / (float)W, row / (float)H, 0);
           target.vertex(col / (float)W, row / (float)H, 0);
         }
