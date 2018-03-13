@@ -11,6 +11,7 @@
 #include "allocore/io/al_App.hpp"
 #include "Cuttlebone/Cuttlebone.hpp"
  #include "common.hpp"
+#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 
 using namespace std;
 using namespace al;
@@ -44,7 +45,7 @@ struct Node {
   }
 };
 
-struct Cursor {
+struct MyCursor {
   Vec3f position;
   float counter;
   float increment;
@@ -52,7 +53,7 @@ struct Cursor {
   Node start;
   Node end;
              
-  Cursor() {
+  MyCursor() {
     increment = 0.1f;
     counter = 0.0f;
     currentFrequency = 0.0f;
@@ -113,7 +114,7 @@ struct Strut {
   }
 };
 
-struct AlloApp : App {
+struct AlloApp : OmniStereoGraphicsRenderer {
    Material material;
    Light light;
    
@@ -130,7 +131,7 @@ struct AlloApp : App {
      291.66666, 312.5, 328.125, 214.285715, 
      200, 306.25, 225, 210};
 
-   Cursor cursor;
+   MyCursor myCursor;
 
    State state;
    cuttlebone::Taker<State> taker;
@@ -194,10 +195,10 @@ struct AlloApp : App {
       }
     }
 
-    cursor.set(node[0],node[2]);
+    myCursor.set(node[0],node[2]);
 
     initWindow();
-    initAudio();
+   // initAudio();
 
     Image image;
     SearchPaths searchPaths;
@@ -210,15 +211,15 @@ struct AlloApp : App {
       exit(-1);
     }
     
-    
     backgroundTexture.allocate(image.array());
   }
 
   void onAnimate(double dt) {
     taker.get(state);
-    cursor.position = state.cursorPosition;
+    myCursor.position = state.cursorPosition;
     nav().pos(state.navPosition);
     nav().quat(state.navOrientation);
+    pose = nav();
   }
 
   void onDraw(Graphics& g) {
@@ -229,7 +230,7 @@ struct AlloApp : App {
     g.translate(nav().pos());
     g.rotate(180, 0, 0, 1);
     backgroundTexture.bind();
-    g.color(1, 1, 1);
+    g.color(0, 0, 0);
     g.draw(backgroundMesh);
     backgroundTexture.unbind();
     g.popMatrix();
@@ -249,7 +250,7 @@ struct AlloApp : App {
     }
     
     g.color(1, 0, 0);
-    cursor.draw(g, sphere);
+    myCursor.draw(g, sphere);
   
   }
 
