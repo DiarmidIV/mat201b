@@ -68,12 +68,14 @@ struct Cursor {
   void update(Node node[]) {
     Vec3f startPos = start.position;
     Vec3f endPos = end.position;
+   // position = startPos.lerp(endPos, counter);
     counter += increment;
     if (counter > 1) {
-      counter -= 1;
+     // counter -= 1;
       unsigned i = rand() % end.connections.size();
       int next = end.connections[i];
       this->set(end, node[next]); 
+      counter -= 1;
     }
     position = startPos.lerp(endPos, counter);
   } 
