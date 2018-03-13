@@ -199,7 +199,7 @@ struct AlloApp : App {
 
     Image image;
     SearchPaths searchPaths;
-    searchPaths.addSearchPath("./diarmid.flatley");
+    searchPaths.addSearchPath("./diarmid.flatley/");
     string filename = searchPaths.find("blue.jpg").filepath();
     if (image.load(filename)) {
       cout << "Read image from " << filename << endl;
@@ -233,16 +233,20 @@ struct AlloApp : App {
     g.depthMask(true);
     material();
     light();
+    
+    g.color(1, 1, 1);
 
     for (unsigned i = 0; i < 14; i++) {
-    node[i].draw(g,sphere);
+      node[i].draw(g,sphere);
     }
 
-    cursor.draw(g, sphere);
-  
-    for (unsigned i = 0; i < struts.size(); i++) { 
+    for (unsigned i = 0; i < struts.size(); i++) {
       struts[i]->draw(g, line);
     }
+    
+    g.color(1, 0, 0);
+    cursor.draw(g, sphere);
+  
   }
 
 };
