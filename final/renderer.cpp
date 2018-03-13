@@ -199,7 +199,7 @@ struct AlloApp : App {
 
     Image image;
     SearchPaths searchPaths;
-    searchPaths.addSearchPath("./diarmid.flatley/");
+    searchPaths.addSearchPath("./");
     string filename = searchPaths.find("blue.jpg").filepath();
     if (image.load(filename)) {
       cout << "Read image from " << filename << endl;
