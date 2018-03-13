@@ -215,6 +215,8 @@ struct AlloApp : App {
   void onAnimate(double dt) {
     taker.get(state);
     cursor.position = state.cursorPosition;
+    nav().pos(state.navPosition);
+    nav().quat(state.navOrientation);
   }
 
   void onDraw(Graphics& g) {

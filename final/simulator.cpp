@@ -221,6 +221,8 @@ struct AlloApp : App {
     cursor.update(node);
    // cursor2.update(node);
     state.cursorPosition = cursor.position;
+    state.navPosition = nav().pos();
+    state.navOrientation = nav().quat();
     maker.set(state);
   }
 

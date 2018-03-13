@@ -10,6 +10,8 @@ struct State {
 
 //  Vec3f vertex[14];
   Vec3f cursorPosition;
+  Vec3f navPosition;
+  Quatd navOrientation;
 //  vector<int> connections[14];
 
 };
