@@ -8,9 +8,9 @@ using namespace al;
 //
 struct State {
 
-  Vec3f vertex[14];
+//  Vec3f vertex[14];
   Vec3f cursorPosition;
-  vector<int> connections[14];
+//  vector<int> connections[14];
 
 };
 

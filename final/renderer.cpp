@@ -178,8 +178,8 @@ struct AlloApp : App {
 
     for (int i = 0; i < 14; i++) {
       node[i] = {vertex[i], connections[i], frequency[i]};
-      state.vertex[i] = vertex[i];
-      state.connections[i] = connections[i];
+     // state.vertex[i] = vertex[i];
+     // state.connections[i] = connections[i];
     } 
 
     int strutCount = 0;
