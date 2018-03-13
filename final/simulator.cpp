@@ -10,7 +10,7 @@
 #include <iostream>
 #include "Gamma/Filter.h"
 #include "Gamma/Oscillator.h"
-#include "Gamma/Gen.h"
+//#include "Gamma/Gen.h"
 #include "allocore/io/al_App.hpp"
 #include "Cuttlebone/Cuttlebone.hpp"
 #include "common.hpp"
