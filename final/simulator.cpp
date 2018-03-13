@@ -48,6 +48,7 @@ struct Node {
   }
 
   void draw(Graphics& g, Mesh& m) {
+    m.color(1,1,1);
     g.pushMatrix();
     g.translate(position);
     g.draw(m);
@@ -64,7 +65,7 @@ struct Cursor {
   Node end;
              
   Cursor() {
-    increment = 0.1f;
+    increment = 0.05f;
     counter = 0.0f;
     currentFrequency = 0.0f;
   }
@@ -90,6 +91,7 @@ struct Cursor {
   } 
 
   void draw(Graphics& g, Mesh& m) {
+    m.color(0,0,1);
     g.pushMatrix();
     g.translate(position);
     g.draw(m);
@@ -113,6 +115,8 @@ struct Strut {
   }
 
   void draw(Graphics& g, Mesh& m) {
+    m.reset();
+    m.color(1,1,1);
     m.primitive(Graphics::LINES);
     m.stroke(2);
     m.vertex(start);
@@ -126,6 +130,8 @@ struct AlloApp : App {
    Light light;
    Mesh sphere;
    Mesh line;
+   Mesh sphere2;
+   Mesh sphere3;
 
    Node node[14];
    Vec3f vertex[14];  
@@ -136,8 +142,10 @@ struct AlloApp : App {
      200, 306.25, 225, 210};
 
    Cursor cursor;
+   Cursor cursor2;
 
    gam::Sine<> sine;
+   gam::Sine<> sine2;
 
    State state;
    cuttlebone::Maker<State> maker;
@@ -147,9 +155,12 @@ struct AlloApp : App {
     light.pos(0,0,0);
 
     addSphere(sphere, 0.1);
-
+    addSphere(sphere2, 0.1);
+    addSphere(sphere3, 0.1);
     sphere.generateNormals();
-    
+    sphere2.generateNormals();
+    sphere3.generateNormals();
+
     vertex[0] = {-1,0,0};
     vertex[1] = {0,0,-1};
     vertex[2] = {0,1,0};
@@ -197,8 +208,10 @@ struct AlloApp : App {
     }
 
     cursor.set(node[0],node[2]);
+    cursor2.set(node[1],node[0]);
 
     sine.freq(0);
+    sine2.freq(0);
 
     initWindow();
     initAudio();
@@ -206,6 +219,7 @@ struct AlloApp : App {
 
   void onAnimate(double dt) {
     cursor.update(node);
+    cursor2.update(node);
     state.cursorPosition = cursor.position;
     maker.set(state);
   }
@@ -219,7 +233,8 @@ struct AlloApp : App {
     node[i].draw(g,sphere);
     }
 
-    cursor.draw(g, sphere);
+    cursor.draw(g, sphere2);
+    cursor2.draw(g, sphere3);
   
     for (unsigned i = 0; i < struts.size(); i++) { 
       struts[i]->draw(g, line);
@@ -230,8 +245,9 @@ struct AlloApp : App {
     gam::Sync::master().spu(audioIO().fps());
     while (io()) {
       sine.freq(cursor.currentFrequency);
+      sine2.freq(cursor2.currentFrequency * 2.0f);
       float s = 0;
-      s = sine();
+      s = (sine() + sine2()) / 2.0f;
       io.out(0) = s;
       io.out(1) = s;
     }

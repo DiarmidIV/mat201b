@@ -102,6 +102,7 @@ struct Strut {
   }
 
   void draw(Graphics& g, Mesh& m) {
+    m.reset();
     m.primitive(Graphics::LINES);
     m.stroke(2);
     m.vertex(start);
