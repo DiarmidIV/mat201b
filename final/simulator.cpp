@@ -3,15 +3,15 @@
 // MAT 201B
 // tuning lattice
 
-#include <cmath>
-#include <iostream>
-#include <vector>
-#include "Cuttlebone/Cuttlebone.hpp"
+#include "common.hpp"
+
 #include "Gamma/Envelope.h"
 #include "Gamma/Filter.h"
 #include "Gamma/Oscillator.h"
 #include "allocore/io/al_App.hpp"
-#include "common.hpp"
+
+#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
+#include "alloutil/al_Simulator.hpp"
 
 using namespace std;
 using namespace al;
@@ -123,7 +123,8 @@ struct Strut {
   }
 };
 
-struct AlloApp : App {
+// struct AlloApp : App {
+struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   Material material;
   Light light;
   Mesh sphere;
@@ -159,7 +160,9 @@ struct AlloApp : App {
   State state;
   cuttlebone::Maker<State> maker;
 
-  AlloApp() : maker("127.0.0.1") {
+  AlloApp()
+      : maker(Simulator::defaultBroadcastIP()),
+        InterfaceServerClient(Simulator::defaultInterfaceServerIP()) {
     nav().pos(0, 0, 20);
     light.pos(0, 0, 0);
 
@@ -239,10 +242,21 @@ struct AlloApp : App {
     // sine2.freq(0);
 
     initWindow();
-    initAudio();
+
+    // audio
+    AlloSphereAudioSpatializer::initAudio();
+    AlloSphereAudioSpatializer::initSpatialization();
+    // if gamma
+    gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
+    scene()->addSource(aSoundSource);
+    aSoundSource.dopplerType(DOPPLER_NONE);
+    // scene()->usePerSampleProcessing(true);
+    scene()->usePerSampleProcessing(false);
   }
 
   void onAnimate(double dt) {
+    while (InterfaceServerClient::oscRecv().recv())
+      ;  // XXX
     cursor.update(node);
     // cursor2.update(node);
     state.cursorPosition = cursor.position;
@@ -267,8 +281,9 @@ struct AlloApp : App {
     }
   }
 
+  SoundSource aSoundSource;
   virtual void onSound(al::AudioIOData& io) {
-    gam::Sync::master().spu(audioIO().fps());
+    aSoundSource.pose(nav());
     while (io()) {
       if (cursor.trigger == true) {
         env.attack(0.01);
@@ -287,14 +302,24 @@ struct AlloApp : App {
       }
 
       s *= env() / 8.0f;
+
+      // XXX -- this is broken the line below should work, but it sounds
+      // terrible
+      // aSoundSource.writeSample(s);
+      //
+      // these two lines should go onces the lien above works
       io.out(0) = s;
       io.out(1) = s;
     }
+    listener()->pose(nav());
+    scene()->render(io);
   }
 };
 
 int main() {
   AlloApp app;
+  app.AlloSphereAudioSpatializer::audioIO().start();
+  app.InterfaceServerClient::connect();
   app.maker.start();
   app.start();
 }

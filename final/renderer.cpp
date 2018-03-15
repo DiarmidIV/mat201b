@@ -3,13 +3,9 @@
 // MAT 201B
 // tuning lattice
 
-#include <cmath>
-#include <iostream>
-#include <vector>
-#include "Cuttlebone/Cuttlebone.hpp"
-#include "allocore/io/al_App.hpp"
-#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 #include "common.hpp"
+
+#include "alloutil/al_OmniStereoGraphicsRenderer.hpp"
 
 using namespace std;
 using namespace al;
@@ -217,6 +213,10 @@ struct AlloApp : OmniStereoGraphicsRenderer {
   }
 
   void onDraw(Graphics& g) {
+    // you may need these later
+    // shader().uniform("texture", 1.0);
+    // shader().uniform("lighting", 1.0);
+    //
     g.lighting(false);
     g.depthMask(false);
 

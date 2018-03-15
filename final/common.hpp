@@ -1,7 +1,11 @@
 #ifndef __COMMON__
 #define __COMMON__
 
-#include "allocore/io/al_App.hpp"
+#include <cmath>
+#include <iostream>
+#include <vector>
+#include "Cuttlebone/Cuttlebone.hpp"
+#include "allocore/al_Allocore.hpp"
 using namespace al;
 
 // Common definition of application state
