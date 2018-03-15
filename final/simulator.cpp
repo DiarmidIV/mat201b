@@ -10,7 +10,7 @@
 #include <iostream>
 #include "Gamma/Filter.h"
 #include "Gamma/Oscillator.h"
-//#include "Gamma/Gen.h"
+#include "Gamma/Envelope.h"
 #include "allocore/io/al_App.hpp"
 #include "Cuttlebone/Cuttlebone.hpp"
 #include "common.hpp"
@@ -63,9 +63,10 @@ struct Cursor {
   float currentFrequency;
   Node start;
   Node end;
+  bool trigger;
              
   Cursor() {
-    increment = 0.05f;
+    increment = 0.1f;
     counter = 0.0f;
     currentFrequency = 0.0f;
   }
@@ -84,6 +85,7 @@ struct Cursor {
     counter += increment;
     if (counter > 1) {
       //  counter -= 1;
+      trigger = true;
       unsigned i = rand() % end.connections.size();
       int next = end.connections[i];
       this->set(end, node[next]); 
@@ -139,15 +141,27 @@ struct AlloApp : App {
    Vec3f vertex[14];  
    vector<Strut*> struts;
    vector<int> connections[14];
-   float frequency[14] = {350, 250, 218.75, 375, 262.5, 300, 
-     291.66666, 312.5, 328.125, 214.285715, 
-     200, 306.25, 225, 210};
+   float frequency[14]; // = {350, 250, 218.75, 375, 262.5, 300, 
+    // 291.66666, 312.5, 328.125, 214.285715, 
+    // 200, 306.25, 225, 210};
+     
+   float fundamental = 200.0f;
+
+   float a = 1;
+   float b = 1.12;
+   float c = 1.37;
+   float d = 1.53;
 
    Cursor cursor;
   // Cursor cursor2;
 
-   gam::Sine<> sine;
-  // gam::Sine<> sine2;
+   gam::Sine<> sine[8];
+   float timbreFrequency[8] = {2.3, 3.8 ,5.2 ,5.8 ,0 ,0 ,0 ,0};
+   float timbreAmplitude[8] = {0.28, 0.23, 0.16, 0.1, 0, 0, 0, 0};
+   gam::AD<> env;
+   
+ 
+   // gam::Sine<> sine2;
 
    State state;
    cuttlebone::Maker<State> maker;
@@ -193,6 +207,21 @@ struct AlloApp : App {
     connections[12] = {3, 4, 5};
     connections[13] = {0, 4 ,5};
 
+    frequency[0] = a * d;
+    frequency[1] = a * b;
+    frequency[2] = b * d;  
+    frequency[3] = b * c;
+    frequency[4] = c * d;
+    frequency[5] = a * c;
+    frequency[6] = (a * b * d) / c;
+    frequency[7] = b * b;
+    frequency[8] = (b * c * d) / a;
+    frequency[9] = d * d;
+    frequency[10] = a * a;
+    frequency[11] = (a * b * c) / d;
+    frequency[12] = c * c;
+    frequency[13] = (a * c * d) / b;
+
     for (int i = 0; i < 14; i++) {
       node[i] = {vertex[i], connections[i], frequency[i]};
     //  state.vertex[i] = vertex[i];
@@ -212,8 +241,11 @@ struct AlloApp : App {
     cursor.set(node[0],node[2]);
    // cursor2.set(node[1],node[0]);
 
-    sine.freq(0);
-   // sine2.freq(0);
+   // sine.freq(0);
+    
+
+   
+    // sine2.freq(0);
 
     initWindow();
     initAudio();
@@ -248,10 +280,23 @@ struct AlloApp : App {
   virtual void onSound(al::AudioIOData& io) {
     gam::Sync::master().spu(audioIO().fps());
     while (io()) {
-      sine.freq(cursor.currentFrequency);
-     // sine2.freq(cursor2.currentFrequency * 2.0f);
+      
+      if (cursor.trigger == true) {
+       env.attack(0.01);
+       env.decay(0.3);
+       env.amp(1.0);
+       env.reset(); 
+       cursor.trigger = false;
+      }
+
       float s = 0;
-      s = (sine()); // + sine2()) / 2.0f;
+
+      for (int i = 0; i < 8; i++) {
+        sine[i].freq(cursor.currentFrequency * fundamental * timbreFrequency[i]);
+        s += sine[i]() * timbreAmplitude[i];
+      }
+
+      s *= env() / 8.0f;
       io.out(0) = s;
       io.out(1) = s;
     }
