@@ -171,8 +171,6 @@ struct AlloApp : OmniStereoGraphicsRenderer {
 
     for (int i = 0; i < 14; i++) {
       node[i] = {vertex[i], connections[i], frequency[i]};
-      // state.vertex[i] = vertex[i];
-      // state.connections[i] = connections[i];
     }
 
     int strutCount = 0;
@@ -188,7 +186,6 @@ struct AlloApp : OmniStereoGraphicsRenderer {
     myCursor.set(node[0], node[2]);
 
     initWindow();
-    // initAudio();
 
     Image image;
     SearchPaths searchPaths;
@@ -214,8 +211,8 @@ struct AlloApp : OmniStereoGraphicsRenderer {
 
   void onDraw(Graphics& g) {
     // you may need these later
-    // shader().uniform("texture", 1.0);
-    // shader().uniform("lighting", 1.0);
+    shader().uniform("texture", 1.0);
+    shader().uniform("lighting", 0.5);
     //
     g.lighting(false);
     g.depthMask(false);
