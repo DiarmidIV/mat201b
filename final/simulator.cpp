@@ -8,6 +8,9 @@
 #include "alloutil/al_AlloSphereAudioSpatializer.hpp"
 #include "alloutil/al_Simulator.hpp"
 
+#include "alloGLV/al_ControlGLV.hpp"
+#include "GLV/glv.h"
+
 using namespace std;
 using namespace al;
 
@@ -19,14 +22,26 @@ Vec3f midpoint(Vec3f a, Vec3f b, Vec3f c) {
   return middle;
 }
 
+float distance (Vec3f a, Vec3f b) {
+  float d;
+  d = sqrt(pow((a.x - b.x), 2) + pow((a.y - b.y), 2) + pow((a.z - b.z), 2));
+  return d;
+}
+
 struct Node {
+//  Mesh sphere;
   Vec3f position = Vec3f(0, 0, 0);
   vector<int> connections;
   float frequency;
+  float g = 1.0f;
+  float b = 1.0f;
+  float r = 0.1f;
 
   Node() {}
 
   Node(Vec3f initPos, vector<int> initConnections, float initFreq) {
+  //  addSphere(sphere, r);
+  //  sphere.generateNormals();  
     position = initPos;
     connections = initConnections;
     frequency = initFreq;
@@ -36,8 +51,25 @@ struct Node {
 
   void set(Vec3f setPos) { position = setPos; }
 
+  /*
+  void update(Vec3f c) {
+    if (distance(position, c) < 0.1f) {
+      g = 0.0f;
+      b = 0.0f;
+      r = 0.2f;
+    } else if (distance(position, c > 0.1f)) {
+      g += 0.01f;
+      b += 0.01f;
+      r = 0.1f;
+       if (g > 1.0f) g = 1.0f;
+       if (b > 1.0f) b = 1.0f;
+    }
+    sphere.color(1,g,b);
+  }
+  */
+
   void draw(Graphics& g, Mesh& m) {
-    m.color(1, 1, 1);
+    //m.color(1, 1, 1);
     g.pushMatrix();
     g.translate(position);
     g.draw(m);
@@ -45,7 +77,7 @@ struct Node {
   }
 };
 
-struct Cursor {
+struct MyCursor {
   Vec3f position;
   float counter;
   float increment;
@@ -54,7 +86,7 @@ struct Cursor {
   Node end;
   bool trigger;
 
-  Cursor() {
+  MyCursor() {
     increment = 0.1f;
     counter = 0.0f;
     currentFrequency = 0.0f;
@@ -123,7 +155,12 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   Mesh sphere;
   Mesh line;
   Mesh sphere2;
-  Mesh sphere3;
+
+  GLVBinding gui;
+  glv::Slider slider_speed;
+  glv::Slider slider_attack;
+  glv::Slider slider_decay;
+  glv::Table layout;
 
   Node node[14];
   Vec3f vertex[14];
@@ -138,12 +175,15 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   float c = 1.37;
   float d = 1.53;
 
-  Cursor cursor;
+  MyCursor myCursor;
 
   gam::Sine<> sine[8];
   float timbreFrequency[8] = {2.3, 3.8, 5.2, 5.8, 0, 0, 0, 0};
   float timbreAmplitude[8] = {0.28, 0.23, 0.16, 0.1, 0, 0, 0, 0};
   gam::AD<> env;
+  float attack;
+  float decay;
+
 
   State state;
   cuttlebone::Maker<State> maker;
@@ -218,10 +258,29 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       }
     }
 
-    cursor.set(node[0], node[2]);
+    myCursor.set(node[0], node[2]);
 
     initWindow();
 
+    gui.bindTo(window());
+    gui.style().color.set(glv::Color(0.7), 0.5);
+    layout.arrangement("x");
+    
+    slider_speed.setValue(0.1);
+    layout << slider_speed;
+    layout << new glv::Label("cursor speed");
+    
+    slider_attack.setValue(0.01);
+    layout << slider_attack;
+    layout << new glv::Label("attack");
+
+    slider_decay.setValue(0.3);
+    layout << slider_decay;
+    layout << new glv::Label("decay");
+
+    layout.arrange();
+    gui << layout;
+    
     // audio
     AlloSphereAudioSpatializer::initAudio();
     AlloSphereAudioSpatializer::initSpatialization();
@@ -236,8 +295,16 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   void onAnimate(double dt) {
     while (InterfaceServerClient::oscRecv().recv())
       ;  // XXX
-    cursor.update(node);
-    state.cursorPosition = cursor.position;
+    myCursor.increment = slider_speed.getValue() * slider_speed.getValue();
+    attack = slider_attack.getValue() * slider_attack.getValue();
+    decay = slider_decay.getValue() * slider_decay.getValue();
+    myCursor.update(node);
+    
+    //for (unsigned i = 0; i < 14; i++) {
+    //  node[i].update(myCursor.position);
+    //}
+    
+    state.cursorPosition = myCursor.position;
     state.navPosition = nav().pos();
     state.navOrientation = nav().quat();
     maker.set(state);
@@ -251,7 +318,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       node[i].draw(g, sphere);
     }
 
-    cursor.draw(g, sphere2);
+    myCursor.draw(g, sphere2);
 
     for (unsigned i = 0; i < struts.size(); i++) {
       struts[i]->draw(g, line);
@@ -260,20 +327,20 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
   SoundSource aSoundSource;
   virtual void onSound(al::AudioIOData& io) {
-    aSoundSource.pose().pos(cursor.position);
+    aSoundSource.pose().pos(myCursor.position);
     while (io()) {
-      if (cursor.trigger == true) {
-        env.attack(0.01);
-        env.decay(0.3);
+      if (myCursor.trigger == true) {
+        env.attack(attack);
+        env.decay(decay);
         env.amp(1.0);
         env.reset();
-        cursor.trigger = false;
+        myCursor.trigger = false;
       }
 
       float s = 0;
 
       for (int i = 0; i < 8; i++) {
-        sine[i].freq(cursor.currentFrequency * fundamental *
+        sine[i].freq(myCursor.currentFrequency * fundamental *
                      timbreFrequency[i]);
         s += sine[i]() * timbreAmplitude[i];
       }
