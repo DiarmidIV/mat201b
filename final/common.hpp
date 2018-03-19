@@ -15,6 +15,7 @@ struct State {
   Vec3f cursorPosition;
   Vec3f navPosition;
   Quatd navOrientation;
+  float colorMix[14];
   //  vector<int> connections[14];
 };
 
