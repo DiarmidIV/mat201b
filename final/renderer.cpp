@@ -8,23 +8,21 @@ using namespace al;
 struct Node {
   Vec3f position = Vec3f(0, 0, 0);
   vector<int> connections;
-  float frequency;
+  float mixAmount = 1.0f;
+  Color active = {1,0,0,1};
+  Color inactive = {1,1,1,1};
 
   Node() {}
 
-  Node(Vec3f initPos, vector<int> initConnections, float initFreq) {
+  Node(Vec3f initPos, vector<int> initConnections) {
     position = initPos;
     connections = initConnections;
-    frequency = initFreq;
   }
-
-  void set(float x, float y, float z) { position = Vec3f(x, y, z); }
-
-  void set(Vec3f setPos) { position = setPos; }
 
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
     g.translate(position);
+    g.color(active.mix(inactive,mixAmount));
     g.draw(m);
     g.popMatrix();
   }
@@ -32,39 +30,8 @@ struct Node {
 
 struct MyCursor {
   Vec3f position;
-  float counter;
-  float increment;
-  float currentFrequency;
-  Node start;
-  Node end;
-
-  MyCursor() {
-    increment = 0.1f;
-    counter = 0.0f;
-    currentFrequency = 0.0f;
-  }
-
-  void set(Node initStart, Node initEnd) {
-    position = initStart.position;
-    start = initStart;
-    end = initEnd;
-    currentFrequency = start.frequency;
-  }
-
-  void update(Node node[]) {
-    Vec3f startPos = start.position;
-    Vec3f endPos = end.position;
-    // position = startPos.lerp(endPos, counter);
-    counter += increment;
-    if (counter > 1) {
-      // counter -= 1;
-      unsigned i = rand() % end.connections.size();
-      int next = end.connections[i];
-      this->set(end, node[next]);
-      counter -= 1;
-    }
-    position = startPos.lerp(endPos, counter);
-  }
+  
+  MyCursor() {}
 
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
@@ -112,9 +79,6 @@ struct AlloApp : OmniStereoGraphicsRenderer {
   Vec3f vertex[14];
   vector<Strut*> struts;
   vector<int> connections[14];
-  float frequency[14] = {350, 250,       218.75, 375,     262.5,
-                         300, 291.66666, 312.5,  328.125, 214.285715,
-                         200, 306.25,    225,    210};
 
   MyCursor myCursor;
 
@@ -123,7 +87,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
 
   AlloApp() {
     nav().pos(0, 0, 20);
-    light.pos(0, 0, 0);
+    light.pos(0, 20, 0);
 
     lens().near(0.1);
     lens().far(1000);
@@ -165,7 +129,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
     connections[13] = {0, 4, 5};
 
     for (int i = 0; i < 14; i++) {
-      node[i] = {vertex[i], connections[i], frequency[i]};
+      node[i] = {vertex[i], connections[i]};
     }
 
     int strutCount = 0;
@@ -178,9 +142,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
       }
     }
 
-    myCursor.set(node[0], node[2]);
-
-    initWindow();
+   // initWindow();
 
     Image image;
     SearchPaths searchPaths;
@@ -202,14 +164,17 @@ struct AlloApp : OmniStereoGraphicsRenderer {
     nav().pos(state.navPosition);
     nav().quat(state.navOrientation);
     pose = nav();
+    for (int i = 0; i < 14; i++) {
+      node[i].mixAmount = state.colorMix[i];
+    }
   }
 
   void onDraw(Graphics& g) {
     // you may need these later
-     shader().uniform("texture", 1.0);
-     shader().uniform("lighting", 1.0);
+      shader().uniform("texture", 1.0);
+      shader().uniform("lighting", 0.0);
     //
-    g.lighting(false);
+    //g.lighting(false);
     g.depthMask(false);
 
     g.pushMatrix();
@@ -225,11 +190,14 @@ struct AlloApp : OmniStereoGraphicsRenderer {
     material();
     light();
 
-    g.color(1, 1, 1);
+    shader().uniform("texture", 0.0);
+    shader().uniform("lighting", 0.5);
 
     for (unsigned i = 0; i < 14; i++) {
       node[i].draw(g, sphere);
     }
+
+    g.color(1,1,1);
 
     for (unsigned i = 0; i < struts.size(); i++) {
       struts[i]->draw(g, line);

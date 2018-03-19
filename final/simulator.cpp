@@ -29,49 +29,33 @@ float distance (Vec3f a, Vec3f b) {
 }
 
 struct Node {
-//  Mesh sphere;
   Vec3f position = Vec3f(0, 0, 0);
   vector<int> connections;
   float frequency;
-  float g = 1.0f;
-  float b = 1.0f;
-  float r = 0.1f;
+  float mixAmount = 1.0;
+  Color active = {1,0,0,1}; 
+  Color inactive = {1,1,1,1};
 
   Node() {}
 
   Node(Vec3f initPos, vector<int> initConnections, float initFreq) {
-  //  addSphere(sphere, r);
-  //  sphere.generateNormals();  
     position = initPos;
     connections = initConnections;
     frequency = initFreq;
   }
 
-  void set(float x, float y, float z) { position = Vec3f(x, y, z); }
-
-  void set(Vec3f setPos) { position = setPos; }
-
-  /*
-  void update(Vec3f c) {
-    if (distance(position, c) < 0.1f) {
-      g = 0.0f;
-      b = 0.0f;
-      r = 0.2f;
-    } else if (distance(position, c > 0.1f)) {
-      g += 0.01f;
-      b += 0.01f;
-      r = 0.1f;
-       if (g > 1.0f) g = 1.0f;
-       if (b > 1.0f) b = 1.0f;
+  void update(Vec3f cursorPos) {
+    if (distance(position, cursorPos) < 0.1f) mixAmount = 0;
+    else {
+      mixAmount += 0.01f;
+      if (mixAmount > 1.0f) mixAmount = 1.0f;
     }
-    sphere.color(1,g,b);
-  }
-  */
+  } 
 
   void draw(Graphics& g, Mesh& m) {
-    //m.color(1, 1, 1);
     g.pushMatrix();
     g.translate(position);
+    g.color(active.mix(inactive,mixAmount));
     g.draw(m);
     g.popMatrix();
   }
@@ -114,9 +98,9 @@ struct MyCursor {
   }
 
   void draw(Graphics& g, Mesh& m) {
-    m.color(0, 0, 1);
     g.pushMatrix();
     g.translate(position);
+    g.color(1, 0, 0, 1);
     g.draw(m);
     g.popMatrix();
   }
@@ -127,23 +111,26 @@ struct Strut {
 
   Strut() {}
 
-  Strut(Node initStart, Node initEnd) {
+  Strut(Node initStart, Node initEnd, Mesh& m) {
     start = initStart.position;
     end = initEnd.position;
-  }
-
-  void set(Node setStart, Node setEnd) {
-    start = setStart.position;
-    end = setEnd.position;
-  }
-
-  void draw(Graphics& g, Mesh& m) {
-    m.reset();
-    m.color(1, 1, 1);
     m.primitive(Graphics::LINES);
     m.stroke(2);
     m.vertex(start);
     m.vertex(end);
+  }
+
+  void set(Node setStart, Node setEnd, Mesh& m) {
+    start = setStart.position;
+    end = setEnd.position;
+    m.primitive(Graphics::LINES);
+    m.stroke(2);
+    m.vertex(start);
+    m.vertex(end);
+  }
+
+  void draw(Graphics& g, Mesh& m) {
+    g.color(1, 1, 1, 1);
     g.draw(m);
   }
 };
@@ -154,7 +141,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   Light light;
   Mesh sphere;
   Mesh line;
-  Mesh sphere2;
 
   GLVBinding gui;
   glv::Slider slider_speed;
@@ -162,10 +148,14 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   glv::Slider slider_decay;
   glv::Table layout;
 
+  Vec3f origin = {0,0,0};
+
   Node node[14];
   Vec3f vertex[14];
   vector<Strut*> struts;
   vector<int> connections[14];
+  float mixAmounts[14];
+  
   float frequency[14]; 
 
   float fundamental = 200.0f;
@@ -192,12 +182,10 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       : maker(Simulator::defaultBroadcastIP()),
         InterfaceServerClient(Simulator::defaultInterfaceServerIP()) {
     nav().pos(0, 0, 20);
-    light.pos(0, 0, 0);
+    light.pos(0, 20, 0);
 
     addSphere(sphere, 0.1);
-    addSphere(sphere2, 0.1);
     sphere.generateNormals();
-    sphere2.generateNormals();
 
     vertex[0] = {-1, 0, 0};
     vertex[1] = {0, 0, -1};
@@ -253,7 +241,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       for (int j = 0; j < node[i].connections.size(); j++) {
         Strut* strut = new Strut;
         struts.push_back(strut);
-        struts[strutCount]->set(node[i], node[node[i].connections[j]]);
+        struts[strutCount]->set(node[i], node[node[i].connections[j]],line);
         strutCount++;
       }
     }
@@ -300,9 +288,10 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     decay = slider_decay.getValue() * slider_decay.getValue();
     myCursor.update(node);
     
-    //for (unsigned i = 0; i < 14; i++) {
-    //  node[i].update(myCursor.position);
-    //}
+    for (unsigned i = 0; i < 14; i++) {
+      node[i].update(myCursor.position);
+      state.colorMix[i] = node[i].mixAmount; 
+    }
     
     state.cursorPosition = myCursor.position;
     state.navPosition = nav().pos();
@@ -318,7 +307,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       node[i].draw(g, sphere);
     }
 
-    myCursor.draw(g, sphere2);
+    myCursor.draw(g, sphere);
 
     for (unsigned i = 0; i < struts.size(); i++) {
       struts[i]->draw(g, line);
@@ -346,6 +335,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       }
 
       s *= env() / 8.0f;
+     // s *= 1 / (distance(nav().pos(), origin) * distance(nav().pos(), origin));
 
       // XXX -- this is broken the line below should work, but it sounds
       // terrible
