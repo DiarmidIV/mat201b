@@ -30,11 +30,23 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "GLV/glv.h"
 #include "alloGLV/al_ControlGLV.hpp"
-#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
 #include "alloutil/al_Simulator.hpp"
+
+#include "allocore/sound/al_Ambisonics.hpp"
+#include "allocore/sound/al_Vbap.hpp"
+#include "alloutil/al_AlloSphereSpeakerLayout.hpp"
 
 using namespace std;
 using namespace al;
+
+#define BLOCK_SIZE (512)
+#define SAMPLE_RATE (44100)
+
+static SpeakerLayout* speakerLayout;
+static Spatializer* panner;
+static Listener* listener;
+static SoundSource source;
+static AudioScene scene(BLOCK_SIZE);
 
 Vec3f midpoint(Vec3f a, Vec3f b, Vec3f c) {
   Vec3f middle;
@@ -159,7 +171,7 @@ struct Strut {
 };
 
 // struct AlloApp : App {
-struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
+struct AlloApp : App, InterfaceServerClient {
   Material material;
   Light light;
   Mesh sphere;
@@ -291,15 +303,47 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     layout.arrange();
     gui << layout;
 
-    // audio
-    AlloSphereAudioSpatializer::initAudio();
-    AlloSphereAudioSpatializer::initSpatialization();
-    // if gamma
-    gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    scene()->addSource(aSoundSource);
-    aSoundSource.dopplerType(DOPPLER_NONE);
-    // scene()->usePerSampleProcessing(true);
-    scene()->usePerSampleProcessing(false);
+    bool inAlloSphere = system("ls /alloshare >> /dev/null 2>&1") == 0;
+    // AudioDevice::printAll();
+    // audioIO().print();
+
+    if (inAlloSphere) {
+      cout << "Using 3 speaker layout" << endl;
+      speakerLayout = new AlloSphereSpeakerLayout();
+      panner = new Vbap(*speakerLayout);
+      // panner = new AmbisonicsSpatializer(*speakerLayout, 3, 3);
+      // dynamic_cast<Vbap*>(panner)->setIs3D(false);  // no 3d!
+    } else {
+      // cout << "Using Headset Speaker Layout" << endl;
+      // speakerLayout = new HeadsetSpeakerLayout();
+      cout << "Using Stereo Speaker Layout" << endl;
+      speakerLayout = new StereoSpeakerLayout();
+      panner = new StereoPanner(*speakerLayout);
+    }
+
+    panner->print();
+    listener = scene.createListener(panner);
+    listener->compile();  // XXX need this?
+
+    source.nearClip(1);
+    source.farClip(50);
+    source.law(ATTEN_INVERSE);
+    // source.law(ATTEN_NONE);
+    source.dopplerType(DOPPLER_NONE);
+    scene.addSource(source);
+    scene.usePerSampleProcessing(false);
+
+    if (inAlloSphere) {
+      audioIO().device(AudioDevice("ECHO X5"));
+      initAudio(SAMPLE_RATE, BLOCK_SIZE, 60, 60);
+    } else {
+      initAudio(SAMPLE_RATE, BLOCK_SIZE, 2, 2);
+    }
+
+    cout << "Audio Device: " << endl;
+    audioIO().print();
+
+    gam::Sync::master().spu(audioIO().fps());
   }
 
   void onAnimate(double dt) {
@@ -338,9 +382,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     }
   }
 
-  SoundSource aSoundSource;
+  SoundSource source;
   virtual void onSound(al::AudioIOData& io) {
-    aSoundSource.pose().pos(myCursor.position);
+    source.pose().pos(myCursor.position);
     while (io()) {
       if (myCursor.trigger == true) {
         env.attack(attack);
@@ -362,22 +406,16 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       // s *= 1 / (distance(nav().pos(), origin) * distance(nav().pos(),
       // origin));
 
-      // XXX -- this is broken the line below should work, but it sounds
-      // terrible
-      aSoundSource.writeSample(s);
-      //
-      // these two lines should go onces the lien above works
-      // io.out(0) = s;
-      // io.out(1) = s;
+      source.writeSample(s);
     }
-    listener()->pose(nav());
-    scene()->render(io);
+    io.frame(0);
+    listener->pose(nav());
+    scene.render(io);
   }
 };
 
 int main() {
   AlloApp app;
-  app.AlloSphereAudioSpatializer::audioIO().start();
   app.InterfaceServerClient::connect();
   app.maker.start();
   app.start();

@@ -78,14 +78,15 @@ struct Strut {
   void set(Node setStart, Node setEnd) {
     start = setStart.position;
     end = setEnd.position;
-    m.primitive(Graphics::LINES);
-    m.stroke(2);
-    m.vertex(start);
-    m.vertex(end);
   }
 
   void draw(Graphics& g, Mesh& m) {
     g.color(1, 1, 1, 1);
+    m.reset();
+    m.primitive(Graphics::LINES);
+    m.stroke(2);
+    m.vertex(start);
+    m.vertex(end);
     g.draw(m);
   }
 };
@@ -161,7 +162,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
       for (int j = 0; j < node[i].connections.size(); j++) {
         Strut* strut = new Strut;
         struts.push_back(strut);
-        struts[strutCount]->set(node[i], node[node[i].connections[j]], line);
+        struts[strutCount]->set(node[i], node[node[i].connections[j]]);
         strutCount++;
       }
     }
