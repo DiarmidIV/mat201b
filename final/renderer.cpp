@@ -1,7 +1,25 @@
 // Diarmid Flatley
-// 2018-2-26
-// MAT 201B
-// tuning lattice
+// 2018-03-20
+// MAT201B
+// Final Project
+
+// Pitch Lattice Sequencer
+// Copyright (C) 2018 Diarmid Flatley
+
+/*
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+*/
 
 #include "common.hpp"
 
@@ -41,6 +59,7 @@ struct MyCursor {
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
     g.translate(position);
+    g.color(1, 0, 0, 1);
     g.draw(m);
     g.popMatrix();
   }
@@ -59,14 +78,14 @@ struct Strut {
   void set(Node setStart, Node setEnd) {
     start = setStart.position;
     end = setEnd.position;
-  }
-
-  void draw(Graphics& g, Mesh& m) {
-    m.reset();
     m.primitive(Graphics::LINES);
     m.stroke(2);
     m.vertex(start);
     m.vertex(end);
+  }
+
+  void draw(Graphics& g, Mesh& m) {
+    g.color(1, 1, 1, 1);
     g.draw(m);
   }
 };
@@ -142,12 +161,10 @@ struct AlloApp : OmniStereoGraphicsRenderer {
       for (int j = 0; j < node[i].connections.size(); j++) {
         Strut* strut = new Strut;
         struts.push_back(strut);
-        struts[strutCount]->set(node[i], node[node[i].connections[j]]);
+        struts[strutCount]->set(node[i], node[node[i].connections[j]], line);
         strutCount++;
       }
     }
-
-    // initWindow();
 
     Image image;
     SearchPaths searchPaths;
@@ -178,7 +195,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
     // you may need these later
     shader().uniform("texture", 1.0);
     shader().uniform("lighting", 0.0);
-    //
+
     // g.lighting(false);
     g.depthMask(false);
 
@@ -202,13 +219,10 @@ struct AlloApp : OmniStereoGraphicsRenderer {
       node[i].draw(g, sphere);
     }
 
-    g.color(1, 1, 1);
-
     for (unsigned i = 0; i < struts.size(); i++) {
       struts[i]->draw(g, line);
     }
 
-    g.color(1, 0, 0);
     myCursor.draw(g, sphere);
   }
 };
