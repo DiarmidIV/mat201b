@@ -7,13 +7,19 @@
 // Copyright (C) 2018 Diarmid Flatley
 
 /*
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version. 
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
 */
-
 
 #include "common.hpp"
 
@@ -26,8 +32,8 @@ struct Node {
   Vec3f position = Vec3f(0, 0, 0);
   vector<int> connections;
   float mixAmount = 1.0f;
-  Color active = {1,0,0,1};
-  Color inactive = {1,1,1,1};
+  Color active = {1, 0, 0, 1};
+  Color inactive = {1, 1, 1, 1};
 
   Node() {}
 
@@ -39,7 +45,7 @@ struct Node {
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
     g.translate(position);
-    g.color(active.mix(inactive,mixAmount));
+    g.color(active.mix(inactive, mixAmount));
     g.draw(m);
     g.popMatrix();
   }
@@ -47,13 +53,13 @@ struct Node {
 
 struct MyCursor {
   Vec3f position;
-  
+
   MyCursor() {}
 
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
     g.translate(position);
-    g.color(1,0,0,1);
+    g.color(1, 0, 0, 1);
     g.draw(m);
     g.popMatrix();
   }
@@ -72,14 +78,15 @@ struct Strut {
   void set(Node setStart, Node setEnd) {
     start = setStart.position;
     end = setEnd.position;
+  }
+
+  void draw(Graphics& g, Mesh& m) {
+    g.color(1, 1, 1, 1);
+    m.reset();
     m.primitive(Graphics::LINES);
     m.stroke(2);
     m.vertex(start);
     m.vertex(end);
-  }
-
-  void draw(Graphics& g, Mesh& m) {
-    g.color(1,1,1,1);
     g.draw(m);
   }
 };
@@ -155,7 +162,7 @@ struct AlloApp : OmniStereoGraphicsRenderer {
       for (int j = 0; j < node[i].connections.size(); j++) {
         Strut* strut = new Strut;
         struts.push_back(strut);
-        struts[strutCount]->set(node[i], node[node[i].connections[j]], line);
+        struts[strutCount]->set(node[i], node[node[i].connections[j]]);
         strutCount++;
       }
     }
@@ -187,10 +194,10 @@ struct AlloApp : OmniStereoGraphicsRenderer {
 
   void onDraw(Graphics& g) {
     // you may need these later
-      shader().uniform("texture", 1.0);
-      shader().uniform("lighting", 0.0);
-    
-    //g.lighting(false);
+    shader().uniform("texture", 1.0);
+    shader().uniform("lighting", 0.0);
+
+    // g.lighting(false);
     g.depthMask(false);
 
     g.pushMatrix();

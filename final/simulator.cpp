@@ -7,11 +7,18 @@
 // Copyright (C) 2018 Diarmid Flatley
 
 /*
-This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
 
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License along with this program; if not, write to the Free Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include "common.hpp"
@@ -21,14 +28,25 @@ You should have received a copy of the GNU General Public License along with thi
 #include "Gamma/Oscillator.h"
 #include "allocore/io/al_App.hpp"
 
-#include "alloutil/al_AlloSphereAudioSpatializer.hpp"
+#include "GLV/glv.h"
+#include "alloGLV/al_ControlGLV.hpp"
 #include "alloutil/al_Simulator.hpp"
 
-#include "alloGLV/al_ControlGLV.hpp"
-#include "GLV/glv.h"
+#include "allocore/sound/al_Ambisonics.hpp"
+#include "allocore/sound/al_Vbap.hpp"
+#include "alloutil/al_AlloSphereSpeakerLayout.hpp"
 
 using namespace std;
 using namespace al;
+
+#define BLOCK_SIZE (512)
+#define SAMPLE_RATE (44100)
+
+static SpeakerLayout* speakerLayout;
+static Spatializer* panner;
+static Listener* listener;
+static SoundSource source;
+static AudioScene scene(BLOCK_SIZE);
 
 Vec3f midpoint(Vec3f a, Vec3f b, Vec3f c) {
   Vec3f middle;
@@ -38,7 +56,7 @@ Vec3f midpoint(Vec3f a, Vec3f b, Vec3f c) {
   return middle;
 }
 
-float distance (Vec3f a, Vec3f b) {
+float distance(Vec3f a, Vec3f b) {
   float d;
   d = sqrt(pow((a.x - b.x), 2) + pow((a.y - b.y), 2) + pow((a.z - b.z), 2));
   return d;
@@ -49,8 +67,8 @@ struct Node {
   vector<int> connections;
   float frequency;
   float mixAmount = 1.0;
-  Color active = {1,0,0,1}; 
-  Color inactive = {1,1,1,1};
+  Color active = {1, 0, 0, 1};
+  Color inactive = {1, 1, 1, 1};
 
   Node() {}
 
@@ -61,17 +79,18 @@ struct Node {
   }
 
   void update(Vec3f cursorPos) {
-    if (distance(position, cursorPos) < 0.1f) mixAmount = 0;
+    if (distance(position, cursorPos) < 0.1f)
+      mixAmount = 0;
     else {
       mixAmount += 0.01f;
       if (mixAmount > 1.0f) mixAmount = 1.0f;
     }
-  } 
+  }
 
   void draw(Graphics& g, Mesh& m) {
     g.pushMatrix();
     g.translate(position);
-    g.color(active.mix(inactive,mixAmount));
+    g.color(active.mix(inactive, mixAmount));
     g.draw(m);
     g.popMatrix();
   }
@@ -152,7 +171,7 @@ struct Strut {
 };
 
 // struct AlloApp : App {
-struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
+struct AlloApp : App, InterfaceServerClient {
   Material material;
   Light light;
   Mesh sphere;
@@ -164,15 +183,15 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   glv::Slider slider_decay;
   glv::Table layout;
 
-  Vec3f origin = {0,0,0};
+  Vec3f origin = {0, 0, 0};
 
   Node node[14];
   Vec3f vertex[14];
   vector<Strut*> struts;
   vector<int> connections[14];
   float mixAmounts[14];
-  
-  float frequency[14]; 
+
+  float frequency[14];
 
   float fundamental = 200.0f;
 
@@ -189,7 +208,6 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
   gam::AD<> env;
   float attack;
   float decay;
-
 
   State state;
   cuttlebone::Maker<State> maker;
@@ -257,7 +275,7 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       for (int j = 0; j < node[i].connections.size(); j++) {
         Strut* strut = new Strut;
         struts.push_back(strut);
-        struts[strutCount]->set(node[i], node[node[i].connections[j]],line);
+        struts[strutCount]->set(node[i], node[node[i].connections[j]], line);
         strutCount++;
       }
     }
@@ -269,11 +287,11 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     gui.bindTo(window());
     gui.style().color.set(glv::Color(0.7), 0.5);
     layout.arrangement("x");
-    
+
     slider_speed.setValue(0.1);
     layout << slider_speed;
     layout << new glv::Label("cursor speed");
-    
+
     slider_attack.setValue(0.01);
     layout << slider_attack;
     layout << new glv::Label("attack");
@@ -284,32 +302,66 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
 
     layout.arrange();
     gui << layout;
-    
-    // audio
-    AlloSphereAudioSpatializer::initAudio();
-    AlloSphereAudioSpatializer::initSpatialization();
-    // if gamma
-    gam::Sync::master().spu(AlloSphereAudioSpatializer::audioIO().fps());
-    scene()->addSource(aSoundSource);
-    aSoundSource.dopplerType(DOPPLER_NONE);
-    // scene()->usePerSampleProcessing(true);
-    scene()->usePerSampleProcessing(false);
+
+    bool inAlloSphere = system("ls /alloshare >> /dev/null 2>&1") == 0;
+    // AudioDevice::printAll();
+    // audioIO().print();
+
+    if (inAlloSphere) {
+      cout << "Using 3 speaker layout" << endl;
+      speakerLayout = new AlloSphereSpeakerLayout();
+      panner = new Vbap(*speakerLayout);
+      // panner = new AmbisonicsSpatializer(*speakerLayout, 3, 3);
+      // dynamic_cast<Vbap*>(panner)->setIs3D(false);  // no 3d!
+    } else {
+      // cout << "Using Headset Speaker Layout" << endl;
+      // speakerLayout = new HeadsetSpeakerLayout();
+      cout << "Using Stereo Speaker Layout" << endl;
+      speakerLayout = new StereoSpeakerLayout();
+      panner = new StereoPanner(*speakerLayout);
+    }
+
+    panner->print();
+    listener = scene.createListener(panner);
+    listener->compile();  // XXX need this?
+
+    source.nearClip(1);
+    source.farClip(50);
+    source.law(ATTEN_INVERSE);
+    // source.law(ATTEN_NONE);
+    source.dopplerType(DOPPLER_NONE);
+    scene.addSource(source);
+    scene.usePerSampleProcessing(false);
+
+    if (inAlloSphere) {
+      audioIO().device(AudioDevice("ECHO X5"));
+      initAudio(SAMPLE_RATE, BLOCK_SIZE, 60, 60);
+    } else {
+      initAudio(SAMPLE_RATE, BLOCK_SIZE, 2, 2);
+    }
+
+    cout << "Audio Device: " << endl;
+    audioIO().print();
+
+    gam::Sync::master().spu(audioIO().fps());
   }
 
   void onAnimate(double dt) {
     while (InterfaceServerClient::oscRecv().recv())
       ;  // XXX
+
     myCursor.increment = slider_speed.getValue() * slider_speed.getValue();
     attack = slider_attack.getValue() * slider_attack.getValue();
     decay = slider_decay.getValue() * slider_decay.getValue();
     myCursor.update(node);
-    
+
     for (unsigned i = 0; i < 14; i++) {
       node[i].update(myCursor.position);
-      state.colorMix[i] = node[i].mixAmount; 
+      state.colorMix[i] = node[i].mixAmount;
     }
-    
+
     state.cursorPosition = myCursor.position;
+
     state.navPosition = nav().pos();
     state.navOrientation = nav().quat();
     maker.set(state);
@@ -330,9 +382,9 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
     }
   }
 
-  SoundSource aSoundSource;
+  SoundSource source;
   virtual void onSound(al::AudioIOData& io) {
-    aSoundSource.pose().pos(myCursor.position);
+    source.pose().pos(myCursor.position);
     while (io()) {
       if (myCursor.trigger == true) {
         env.attack(attack);
@@ -351,24 +403,19 @@ struct AlloApp : App, AlloSphereAudioSpatializer, InterfaceServerClient {
       }
 
       s *= env() / 8.0f;
-     // s *= 1 / (distance(nav().pos(), origin) * distance(nav().pos(), origin));
+      // s *= 1 / (distance(nav().pos(), origin) * distance(nav().pos(),
+      // origin));
 
-      // XXX -- this is broken the line below should work, but it sounds
-      // terrible
-       aSoundSource.writeSample(s);
-      //
-      // these two lines should go onces the lien above works
-      // io.out(0) = s;
-      // io.out(1) = s;
+      source.writeSample(s);
     }
-    listener()->pose(nav());
-    scene()->render(io);
+    io.frame(0);
+    listener->pose(nav());
+    scene.render(io);
   }
 };
 
 int main() {
   AlloApp app;
-  app.AlloSphereAudioSpatializer::audioIO().start();
   app.InterfaceServerClient::connect();
   app.maker.start();
   app.start();
